@@ -4,8 +4,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +20,7 @@ public class ProxyJDBCManager {
 	private static Logger logger = LoggerFactory.getLogger(ProxyJDBCManager.class.getSimpleName());
 
 	private static final String INSERT_ACTIVITY_LOG = "insert into ACTIVITY_LOG (ACTIVITY_LOG_ID, REQUEST_TIME, RESPONSE_TIME, REQUEST_XML, RESPONSE_XML, SOURCE_IP, DESTINATION_URL) values (ACTIVITY_LOG_SEQ.nextval, ?, ?, ?, ?, ?, ?)";
-	private static final String LOAD_ROUTING_MAP  = "select CONTEXT_PATH, HANDLER_CLASS from REQUEST_ROUTER where IS_ACTIVE = 1";
+	private static final String LOAD_ROUTING_MAP  = "select CONTEXT_PATH, HANDLER_CLASS, DESTINATION_URL from REQUEST_ROUTER where IS_ACTIVE = 1";
 	
 	public static void cleanup() {
 		try {
@@ -41,12 +41,13 @@ public class ProxyJDBCManager {
 			String dbUsername = reader.getProperty("db.username");
 			String dbPassword = reader.getProperty("db.password");
 			String dbSID = reader.getProperty("db.sid");
+			String dbPort = reader.getProperty("db.port");
 			
 			BoneCPConfig config = new BoneCPConfig();
 			StringBuilder stringBuilder = new StringBuilder("jdbc:oracle:thin:@");
 			stringBuilder.append(dbserver);
 			stringBuilder.append(":");
-			stringBuilder.append("1521");
+			stringBuilder.append(dbPort);
 			stringBuilder.append(":");
 			stringBuilder.append(dbSID);
 
@@ -79,14 +80,19 @@ public class ProxyJDBCManager {
 
 	private Connection connection = null;
 	
-	public Map<String, String> loadRoutingMap() {
-		Map<String, String> routerMap = new HashMap<String, String>();
+	public List<RoutingMapModel> loadRoutingMap() {
+		RoutingMapModel routingMap;
+		List<RoutingMapModel> routingList = new ArrayList<RoutingMapModel>();
 		try {
 			connection = connectionPool.getConnection();
 			PreparedStatement stmt = connection.prepareStatement(LOAD_ROUTING_MAP);
 			ResultSet rs = stmt.executeQuery();
 			while (rs.next()) {
-				routerMap.put(rs.getString("CONTEXT_PATH"), rs.getString("HANDLER_CLASS"));
+				routingMap = new RoutingMapModel();
+				routingMap.setContextPath(rs.getString("CONTEXT_PATH"));
+				routingMap.setHandlerClass(rs.getString("HANDLER_CLASS"));
+				routingMap.setDestinationURL(rs.getString("DESTINATION_URL"));
+				routingList.add(routingMap);
 			}
 		} catch (Exception e) {
 			logger.error("Exceptions Occured while Fetching Routing Details", e);
@@ -99,7 +105,7 @@ public class ProxyJDBCManager {
 				}
 			}
 		}
-		return routerMap;
+		return routingList;
 	}
 	
 	public void logActivity(ActivityLogModel log) {

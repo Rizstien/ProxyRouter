@@ -1,6 +1,7 @@
 package com.rizstien.proxy.controller;
 
-import java.util.Map;
+import java.lang.reflect.Constructor;
+import java.util.List;
 
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
@@ -10,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.rizstien.proxy.dao.ProxyJDBCManager;
+import com.rizstien.proxy.dao.RoutingMapModel;
 import com.rizstien.proxy.util.ConfigReader;
 
 public class ProxyServer {
@@ -23,15 +25,21 @@ public class ProxyServer {
 		logger.info("SERVER START AT PORT : "+port);
 		
 		manager = ProxyJDBCManager.instance();
-		Map<String, String> routingMap = manager.loadRoutingMap();
-		Handler[] handlers = new Handler[routingMap.size()];
+		List<RoutingMapModel> routingList = manager.loadRoutingMap();
+		Handler[] handlers = new Handler[routingList.size()];
 		ContextHandlerCollection contexts = new ContextHandlerCollection();
 		int i = 0;
 		
-		for(String key : routingMap.keySet()) {
+		for(RoutingMapModel route : routingList) {
 			ContextHandler context = new ContextHandler();
-			context.setContextPath(key);
-			context.setHandler((Handler) Class.forName(routingMap.get(key)).newInstance());
+			context.setContextPath(route.getContextPath());
+			
+			@SuppressWarnings("unchecked")
+			Class<Handler> _tempClass = (Class<Handler>) Class.forName(route.getHandlerClass());
+			Constructor<Handler> ctor = _tempClass.getConstructor(String.class);
+			Handler handler = (Handler) ctor.newInstance(route.getDestinationURL());
+			
+			context.setHandler(handler);
 			handlers[i] = context;
 			i++;
 		}

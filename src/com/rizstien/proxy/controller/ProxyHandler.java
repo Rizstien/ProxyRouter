@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import com.rizstien.proxy.dao.ActivityLogModel;
 import com.rizstien.proxy.dao.ProxyJDBCManager;
-import com.rizstien.proxy.util.ConfigReader;
 
 public class ProxyHandler extends AbstractHandler {
 
@@ -24,15 +23,17 @@ public class ProxyHandler extends AbstractHandler {
 	private static String redirectUrl;
 
 	public ProxyHandler() {
-		ConfigReader reader = ConfigReader.getInstance();
-		redirectUrl = reader.getProperty("redirect.url");
+		// TODO :
+	}
+	public ProxyHandler(String redirectUrl) {
+		manager = ProxyJDBCManager.instance();
+		this.redirectUrl = redirectUrl;
 	}
 	
 	public void handle(String arg0, Request request, HttpServletRequest httpRequest, HttpServletResponse response) throws IOException, ServletException {
 		logger.info("Forwarding Request to " + redirectUrl);
 		
 		String req = httpRequest.getParameter("xml");
-		manager = ProxyJDBCManager.instance();
 		ActivityLogModel log = new ActivityLogModel();
 		try {
 			log.setSourceIP(httpRequest.getRemoteAddr());
